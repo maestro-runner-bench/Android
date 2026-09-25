@@ -47,12 +47,50 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
 
-    <com.duckduckgo.common.ui.view.PopupMenuItemView
-        android:id="@+id/hatchMenuHideShortcut"
+    <LinearLayout
+        android:id="@+id/hatchMenuAfterInactivity"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:leadingIcon="@drawable/ic_eye_closed_24"
-        app:primaryText="@string/hatchMenuHideShortcut" />
+        android:background="?attr/selectableItemBackground"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/popupMenuItemHeight"
+        android:orientation="horizontal"
+        android:screenReaderFocusable="true">
+
+        <ImageView
+            android:layout_width="@dimen/keyline_4"
+            android:layout_height="@dimen/keyline_4"
+            android:layout_marginStart="@dimen/keyline_4"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_settings_24"
+            android:tint="?attr/daxColorPrimaryIcon" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:importantForAccessibility="noHideDescendants"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/keyline_4"
+            android:paddingEnd="@dimen/keyline_4"
+            android:paddingTop="@dimen/keyline_2"
+            android:paddingBottom="@dimen/keyline_2">
+
+            <com.duckduckgo.common.ui.view.text.DaxTextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/hatchMenuAfterInactivitySettings"
+                app:typography="body1" />
+
+            <com.duckduckgo.common.ui.view.text.DaxTextView
+                android:id="@+id/hatchMenuAfterInactivitySubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:textType="secondary"
+                app:typography="caption" />
+        </LinearLayout>
+    </LinearLayout>
 
     <com.duckduckgo.common.ui.view.divider.HorizontalDivider
         app:defaultPadding="false"
@@ -60,10 +98,10 @@
         android:layout_height="wrap_content"/>
 
     <com.duckduckgo.common.ui.view.PopupMenuItemView
-        android:id="@+id/hatchMenuAfterInactivity"
+        android:id="@+id/hatchMenuHideShortcut"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:leadingIcon="@drawable/ic_settings_24"
-        app:primaryText="@string/hatchMenuAfterInactivitySettings" />
+        app:leadingIcon="@drawable/ic_eye_closed_24"
+        app:primaryText="@string/hatchMenuHideShortcut" />
 
 </LinearLayout>

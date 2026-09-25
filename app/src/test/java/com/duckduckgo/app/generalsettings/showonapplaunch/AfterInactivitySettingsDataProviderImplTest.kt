@@ -22,6 +22,7 @@ import com.duckduckgo.app.generalsettings.showonapplaunch.model.ShowOnAppLaunchO
 import com.duckduckgo.app.generalsettings.showonapplaunch.model.ShowOnAppLaunchOption.LastOpenedTab
 import com.duckduckgo.app.generalsettings.showonapplaunch.model.ShowOnAppLaunchOption.NewTabPage
 import com.duckduckgo.app.generalsettings.showonapplaunch.model.ShowOnAppLaunchOption.SpecificPage
+import com.duckduckgo.app.generalsettings.showonapplaunch.store.FakeShowOnAppLaunchOptionDataStore
 import com.duckduckgo.app.generalsettings.showonapplaunch.store.ShowOnAppLaunchOptionDataStore
 import com.duckduckgo.browser.feature.toggles.AndroidBrowserConfigFeature
 import com.duckduckgo.common.test.CoroutineTestRule
@@ -31,6 +32,7 @@ import com.duckduckgo.newtabpage.api.NtpAfterIdleManager
 import com.duckduckgo.settings.api.AfterInactivityReturnDestination
 import com.duckduckgo.settings.api.AfterInactivitySettings
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -165,9 +167,30 @@ class AfterInactivitySettingsDataProviderImplTest {
         verify(ntpAfterIdleManager).onIdleTimeoutSelected(600L)
     }
 
+    @Test
+    fun whenEditedSpecificUrlIsSubmittedThenNewUrlIsPersistedAndResolvedStateCleared() = runTest {
+        val store = FakeShowOnAppLaunchOptionDataStore(SpecificPage("https://old.example/", "https://resolved.example/"))
+        store.setShowOnAppLaunchTabId("specific-tab")
+        val provider = providerWithStore(store)
+
+        provider.setDestination(AfterInactivityReturnDestination.SpecificPage("https://edited.example/"))
+
+        assertEquals(SpecificPage("https://edited.example/"), store.optionFlow.first())
+        assertNull(store.showOnAppLaunchTabId)
+    }
+
     private fun setRemoteDefault(seconds: Long) {
         browserConfigFeature.showNTPAfterIdleReturn().setRawStoredState(
             Toggle.State(enable = true, settings = """{"defaultIdleThresholdSeconds":$seconds}"""),
         )
     }
+
+    private fun providerWithStore(store: ShowOnAppLaunchOptionDataStore) = AfterInactivitySettingsDataProviderImpl(
+        store,
+        settingsDataStore,
+        browserConfigFeature,
+        RealIdleThresholdResolver(browserConfigFeature),
+        urlConverter,
+        ntpAfterIdleManager,
+    )
 }

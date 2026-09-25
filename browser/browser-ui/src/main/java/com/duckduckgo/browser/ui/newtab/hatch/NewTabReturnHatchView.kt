@@ -20,6 +20,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.FrameLayout
 import androidx.annotation.AttrRes
 import androidx.annotation.DrawableRes
@@ -37,6 +38,7 @@ import com.duckduckgo.browsermode.api.BrowserMode
 import com.duckduckgo.common.ui.menu.PopupMenu
 import com.duckduckgo.common.ui.view.gone
 import com.duckduckgo.common.ui.view.show
+import com.duckduckgo.common.ui.view.text.DaxTextView
 import com.duckduckgo.common.ui.viewbinding.viewBinding
 import com.duckduckgo.common.utils.ConflatedJob
 import com.duckduckgo.common.utils.ViewViewModelFactory
@@ -79,7 +81,7 @@ class NewTabReturnHatchView @JvmOverloads constructor(
 
     private val binding: ViewNewTabHatchBinding by viewBinding()
 
-    private val conflatedJob = ConflatedJob()
+    private val viewStateJob = ConflatedJob()
     private val faviconJob = ConflatedJob()
 
     private var hatchHatchListener: HatchListener? = null
@@ -98,7 +100,7 @@ class NewTabReturnHatchView @JvmOverloads constructor(
 
         findViewTreeLifecycleOwner()?.lifecycle?.addObserver(viewModel)
 
-        conflatedJob += viewModel.viewState
+        viewStateJob += viewModel.viewState
             .onEach { render(it) }
             .launchIn(findViewTreeLifecycleOwner()?.lifecycleScope!!)
 
@@ -126,7 +128,7 @@ class NewTabReturnHatchView @JvmOverloads constructor(
         super.onDetachedFromWindow()
 
         findViewTreeLifecycleOwner()?.lifecycle?.removeObserver(viewModel)
-        conflatedJob.cancel()
+        viewStateJob.cancel()
         faviconJob.cancel()
     }
 
@@ -141,6 +143,7 @@ class NewTabReturnHatchView @JvmOverloads constructor(
 
     fun render(state: NewTabReturnHatchViewModel.ViewState) {
         faviconJob.cancel()
+        popupMenu.contentView.setAfterInactivityDestinationSummary(state.afterInactivityDestinationSummaryResId)
         if (state.shouldShow) {
             when (state.mode) {
                 BrowserMode.FIRE -> {
@@ -221,4 +224,13 @@ class NewTabReturnHatchView @JvmOverloads constructor(
         context.theme.resolveAttribute(attr, typedValue, true)
         return typedValue.resourceId
     }
+}
+
+private fun View.setAfterInactivityDestinationSummary(@androidx.annotation.StringRes summaryResId: Int) {
+    val summary = context.getString(summaryResId)
+    findViewById<DaxTextView>(R.id.hatchMenuAfterInactivitySubtitle).text = summary
+    findViewById<View>(R.id.hatchMenuAfterInactivity).contentDescription = listOf(
+        context.getString(R.string.hatchMenuAfterInactivitySettings),
+        summary,
+    ).joinToString(", ")
 }
