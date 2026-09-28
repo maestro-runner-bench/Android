@@ -37,8 +37,8 @@ import com.duckduckgo.browser.ui.databinding.ViewNewTabHatchBinding
 import com.duckduckgo.browsermode.api.BrowserMode
 import com.duckduckgo.common.ui.menu.PopupMenu
 import com.duckduckgo.common.ui.view.gone
+import com.duckduckgo.common.ui.view.listitem.TwoLineListItem
 import com.duckduckgo.common.ui.view.show
-import com.duckduckgo.common.ui.view.text.DaxTextView
 import com.duckduckgo.common.ui.viewbinding.viewBinding
 import com.duckduckgo.common.utils.ConflatedJob
 import com.duckduckgo.common.utils.ViewViewModelFactory
@@ -143,7 +143,7 @@ class NewTabReturnHatchView @JvmOverloads constructor(
 
     fun render(state: NewTabReturnHatchViewModel.ViewState) {
         faviconJob.cancel()
-        popupMenu.contentView.setAfterInactivityDestinationSummary(state.afterInactivityDestinationSummaryResId)
+        popupMenu.contentView.setAfterInactivityEntry(state.showAfterInactivityEntry, state.afterInactivityDestinationSummary)
         if (state.shouldShow) {
             when (state.mode) {
                 BrowserMode.FIRE -> {
@@ -186,9 +186,10 @@ class NewTabReturnHatchView @JvmOverloads constructor(
         popupMenu.onMenuItemClicked(popupMenu.contentView.findViewById(R.id.hatchMenuHideShortcut)) {
             viewModel.onDontShowThisPressed()
         }
-        popupMenu.onMenuItemClicked(popupMenu.contentView.findViewById(R.id.hatchMenuAfterInactivity)) {
+        popupMenu.contentView.findViewById<TwoLineListItem>(R.id.hatchMenuAfterInactivity).setClickListener {
             viewModel.onAfterInactivityPressed()
             hatchHatchListener?.onAfterInactivityPressed()
+            popupMenu.dismiss()
         }
     }
 
@@ -226,11 +227,25 @@ class NewTabReturnHatchView @JvmOverloads constructor(
     }
 }
 
-private fun View.setAfterInactivityDestinationSummary(@androidx.annotation.StringRes summaryResId: Int) {
-    val summary = context.getString(summaryResId)
-    findViewById<DaxTextView>(R.id.hatchMenuAfterInactivitySubtitle).text = summary
-    findViewById<View>(R.id.hatchMenuAfterInactivity).contentDescription = listOf(
+private fun View.setAfterInactivityEntry(
+    show: Boolean,
+    summary: NewTabReturnHatchViewModel.AfterInactivityDestinationSummary,
+) {
+    val visibility = if (show) View.VISIBLE else View.GONE
+    findViewById<View>(R.id.hatchMenuAfterInactivity).visibility = visibility
+    findViewById<View>(R.id.hatchMenuAfterInactivityTopDivider).visibility = visibility
+    findViewById<View>(R.id.hatchMenuAfterInactivityBottomDivider).visibility = visibility
+    if (!show) return
+
+    val summaryText = when (summary) {
+        is NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.TextRes -> context.getString(summary.resId)
+        is NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.Url -> summary.url
+    }
+    val hatchMenuAfterInactivity = findViewById<TwoLineListItem>(R.id.hatchMenuAfterInactivity)
+    hatchMenuAfterInactivity.setSecondaryText(summaryText)
+    hatchMenuAfterInactivity.contentDescription = context.getString(
+        R.string.hatchMenuAfterInactivityContentDescription,
         context.getString(R.string.hatchMenuAfterInactivitySettings),
-        summary,
-    ).joinToString(", ")
+        summaryText,
+    )
 }

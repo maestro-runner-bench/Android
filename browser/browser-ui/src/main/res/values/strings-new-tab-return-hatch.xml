@@ -22,9 +22,6 @@
     <string name="newTabReturnHatchUndo">Undo</string>
     <string name="hatchMenuReturnTab">Return to Tab</string>
     <string name="hatchMenuAfterInactivitySettings">After Inactivity</string>
-    <string name="hatchMenuAfterInactivityOpenLastUsedTab">Open last used tab</string>
-    <string name="hatchMenuAfterInactivityOpenNewTab">Open new tab</string>
-    <string name="hatchMenuAfterInactivityOpenSpecificPage">Open specific page</string>
     <string name="hatchMenuCloseTab">Close Tab</string>
     <string name="hatchMenuBurnTab">Delete Tab</string>
     <string name="hatchMenuHideShortcut">Hide shortcut</string>

@@ -144,6 +144,7 @@ class ShowOnAppLaunchActivity : DuckDuckGoActivity() {
                         with(binding) {
                             specificPageCheckListItem.setChecked(true)
                             specificPageUrlInput.isEnabled = true
+                            specificPageUrlInput.visibility = View.VISIBLE
                         }
                     }
                 }
@@ -232,5 +233,6 @@ class ShowOnAppLaunchActivity : DuckDuckGoActivity() {
     private fun uncheckSpecificPageCheckListItem() {
         binding.specificPageCheckListItem.setChecked(false)
         binding.specificPageUrlInput.isEnabled = false
+        binding.specificPageUrlInput.visibility = View.GONE
     }
 }

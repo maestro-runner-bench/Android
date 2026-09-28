@@ -67,9 +67,15 @@ class NewTabReturnHatchViewModel @Inject constructor(
     private val duckDuckGoUrlDetector: DuckDuckGoUrlDetector,
     private val ntpAfterIdleManager: NtpAfterIdleManager,
     private val afterInactivitySettingsDataProvider: AfterInactivitySettingsDataProvider,
+    private val newTabReturnHatchFeature: NewTabReturnHatchFeature,
     private val escapeHatchTargetResolver: EscapeHatchTargetResolver,
     private val pixel: Pixel,
 ) : ViewModel(), DefaultLifecycleObserver {
+
+    sealed interface AfterInactivityDestinationSummary {
+        data class TextRes(@StringRes val resId: Int) : AfterInactivityDestinationSummary
+        data class Url(val url: String) : AfterInactivityDestinationSummary
+    }
 
     data class ViewState(
         val tabTitle: String = "",
@@ -82,7 +88,9 @@ class NewTabReturnHatchViewModel @Inject constructor(
         val isSerp: Boolean = false,
         val tabs: Int = 0,
         val showTabsButton: Boolean = false,
-        @StringRes val afterInactivityDestinationSummaryResId: Int = R.string.hatchMenuAfterInactivityOpenNewTab,
+        val showAfterInactivityEntry: Boolean = false,
+        val afterInactivityDestinationSummary: AfterInactivityDestinationSummary =
+            AfterInactivityDestinationSummary.TextRes(R.string.hatchMenuAfterInactivityDestinationNewTabPage),
     )
 
     sealed class Command {
@@ -137,18 +145,25 @@ class NewTabReturnHatchViewModel @Inject constructor(
         nativeInputEnabled && capability != NativeInputState.InputMode.SEARCH_ONLY && !navBarEnabled
     }
 
+    // Pre-combined so the two ViewState combine() blocks below stay within Kotlin's typed-overload arity.
+    private val afterInactivityInfo: Flow<Pair<AfterInactivitySettings, Boolean>> = combine(
+        afterInactivitySettingsDataProvider.settings,
+        newTabReturnHatchFeature.afterInactivityEntry().enabled(),
+    ) { settings, showEntry -> settings to showEntry }
+
     val viewState = snapshotTarget.flatMapLatest { target ->
         if (target == null) {
             combine(
                 currentTabRepository.flowTabs,
                 shouldShowTabsButton,
-                afterInactivitySettingsDataProvider.settings,
-            ) { tabs, showTabs, afterInactivitySettings ->
+                afterInactivityInfo,
+            ) { tabs, showTabs, (afterInactivitySettings, showAfterInactivityEntry) ->
                 ViewState(
                     shouldShow = false,
                     tabs = tabs.size,
                     showTabsButton = showTabs,
-                    afterInactivityDestinationSummaryResId = afterInactivitySettings.destinationSummaryResId(),
+                    showAfterInactivityEntry = showAfterInactivityEntry,
+                    afterInactivityDestinationSummary = afterInactivitySettings.destinationSummary(),
                 )
             }
         } else {
@@ -158,8 +173,8 @@ class NewTabReturnHatchViewModel @Inject constructor(
                 tabRepositoryProvider.forMode(target.mode).flowTabs,
                 currentTabRepository.flowTabs,
                 shouldShowTabsButton,
-                afterInactivitySettingsDataProvider.settings,
-            ) { closed, targetTabs, activityTabs, showTabs, afterInactivitySettings ->
+                afterInactivityInfo,
+            ) { closed, targetTabs, activityTabs, showTabs, (afterInactivitySettings, showAfterInactivityEntry) ->
                 val tab = targetTabs.firstOrNull { it.tabId == target.tabId }
                 if (!closed && tab != null && afterInactivitySettings.isReturnToLastTabShortcutEnabled()) {
                     val url = if (isFireTarget) "" else tab.url.orEmpty()
@@ -174,14 +189,16 @@ class NewTabReturnHatchViewModel @Inject constructor(
                         isSerp = url.isNotEmpty() && duckDuckGoUrlDetector.isDuckDuckGoQueryUrl(url),
                         tabs = activityTabs.size,
                         showTabsButton = showTabs,
-                        afterInactivityDestinationSummaryResId = afterInactivitySettings.destinationSummaryResId(),
+                        showAfterInactivityEntry = showAfterInactivityEntry,
+                        afterInactivityDestinationSummary = afterInactivitySettings.destinationSummary(),
                     )
                 } else {
                     ViewState(
                         shouldShow = false,
                         tabs = activityTabs.size,
                         showTabsButton = showTabs,
-                        afterInactivityDestinationSummaryResId = afterInactivitySettings.destinationSummaryResId(),
+                        showAfterInactivityEntry = showAfterInactivityEntry,
+                        afterInactivityDestinationSummary = afterInactivitySettings.destinationSummary(),
                     )
                 }
             }
@@ -268,11 +285,16 @@ private fun AfterInactivitySettings.isReturnToLastTabShortcutEnabled(): Boolean 
     return this is AfterInactivitySettings.NewTabPage && returnToLastTabShortcutEnabled
 }
 
-@StringRes
-private fun AfterInactivitySettings.destinationSummaryResId(): Int {
+// Mirrors the value shown on the After Inactivity row of the General Settings screen
+// (see GeneralSettingsActivity.setShowOnAppLaunchOptionSecondaryText), so the hatch and
+// the settings screen never disagree on what "After Inactivity" currently means.
+private fun AfterInactivitySettings.destinationSummary(): NewTabReturnHatchViewModel.AfterInactivityDestinationSummary {
     return when (this) {
-        AfterInactivitySettings.LastUsedTab -> R.string.hatchMenuAfterInactivityOpenLastUsedTab
-        is AfterInactivitySettings.NewTabPage -> R.string.hatchMenuAfterInactivityOpenNewTab
-        is AfterInactivitySettings.SpecificPage -> R.string.hatchMenuAfterInactivityOpenSpecificPage
+        AfterInactivitySettings.LastUsedTab ->
+            NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.TextRes(R.string.hatchMenuAfterInactivityDestinationLastOpenedTab)
+        is AfterInactivitySettings.NewTabPage ->
+            NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.TextRes(R.string.hatchMenuAfterInactivityDestinationNewTabPage)
+        is AfterInactivitySettings.SpecificPage ->
+            NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.Url(url)
     }
 }

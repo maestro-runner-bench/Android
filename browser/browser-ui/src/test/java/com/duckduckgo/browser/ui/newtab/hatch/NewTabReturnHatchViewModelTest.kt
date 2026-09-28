@@ -32,6 +32,8 @@ import com.duckduckgo.common.test.CoroutineTestRule
 import com.duckduckgo.duckchat.api.DuckChat
 import com.duckduckgo.duckchat.api.DuckChatInputModeState
 import com.duckduckgo.duckchat.api.nativeinput.NativeInputState
+import com.duckduckgo.feature.toggles.api.FakeFeatureToggleFactory
+import com.duckduckgo.feature.toggles.api.Toggle
 import com.duckduckgo.newtabpage.api.EscapeHatchTarget
 import com.duckduckgo.newtabpage.api.EscapeHatchTargetResolver
 import com.duckduckgo.newtabpage.api.NtpAfterIdleManager
@@ -82,6 +84,10 @@ class NewTabReturnHatchViewModelTest {
     private val nativeInputEnabledFlow = MutableStateFlow(true)
     private val navBarEnabledFlow = MutableStateFlow(false)
     private val providerSettings = MutableStateFlow<AfterInactivitySettings>(newTabPageSettings(returnToLastTabShortcutEnabled = true))
+    private val fakeNewTabReturnHatchFeature = FakeFeatureToggleFactory.create(
+        NewTabReturnHatchFeature::class.java,
+        ioDispatcher = coroutinesTestRule.testDispatcher,
+    )
 
     private lateinit var testee: NewTabReturnHatchViewModel
 
@@ -94,6 +100,7 @@ class NewTabReturnHatchViewModelTest {
         whenever(mockDuckChat.observeNativeInputFieldUserSettingEnabled()).thenReturn(nativeInputEnabledFlow)
         whenever(mockDuckChat.observeNativeInputNavBarEnabled()).thenReturn(navBarEnabledFlow)
         whenever(mockDuckChatInputModeState.inputModeCapability).thenReturn(inputModeCapabilityFlow)
+        fakeNewTabReturnHatchFeature.afterInactivityEntry().setRawStoredState(Toggle.State(enable = true))
 
         testee = NewTabReturnHatchViewModel(
             currentTabRepository = mockTabRepository,
@@ -104,6 +111,7 @@ class NewTabReturnHatchViewModelTest {
             duckDuckGoUrlDetector = mockDuckDuckGoUrlDetector,
             ntpAfterIdleManager = mockNtpAfterIdleManager,
             afterInactivitySettingsDataProvider = mockAfterInactivitySettingsDataProvider,
+            newTabReturnHatchFeature = fakeNewTabReturnHatchFeature,
             escapeHatchTargetResolver = mockResolver,
             pixel = mockPixel,
         )
@@ -197,16 +205,43 @@ class NewTabReturnHatchViewModelTest {
     @Test
     fun whenProviderDestinationChangesThenViewStateUpdatesAfterInactivitySummary() = runTest {
         testee.viewState.test {
-            assertEquals(R.string.hatchMenuAfterInactivityOpenNewTab, awaitItem().afterInactivityDestinationSummaryResId)
+            assertEquals(
+                NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.TextRes(R.string.hatchMenuAfterInactivityDestinationNewTabPage),
+                awaitItem().afterInactivityDestinationSummary,
+            )
 
             providerSettings.value = AfterInactivitySettings.LastUsedTab
-            assertEquals(R.string.hatchMenuAfterInactivityOpenLastUsedTab, awaitItem().afterInactivityDestinationSummaryResId)
+            assertEquals(
+                NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.TextRes(R.string.hatchMenuAfterInactivityDestinationLastOpenedTab),
+                awaitItem().afterInactivityDestinationSummary,
+            )
 
             providerSettings.value = AfterInactivitySettings.SpecificPage(
                 url = "https://example.com/",
                 effectiveTimeoutSeconds = 600L,
             )
-            assertEquals(R.string.hatchMenuAfterInactivityOpenSpecificPage, awaitItem().afterInactivityDestinationSummaryResId)
+            assertEquals(
+                NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.Url("https://example.com/"),
+                awaitItem().afterInactivityDestinationSummary,
+            )
+        }
+    }
+
+    @Test
+    fun whenAfterInactivityEntryFeatureEnabledThenViewStateShowsEntry() = runTest {
+        fakeNewTabReturnHatchFeature.afterInactivityEntry().setRawStoredState(Toggle.State(enable = true))
+
+        testee.viewState.test {
+            assertTrue(awaitItem().showAfterInactivityEntry)
+        }
+    }
+
+    @Test
+    fun whenAfterInactivityEntryFeatureDisabledThenViewStateHidesEntry() = runTest {
+        fakeNewTabReturnHatchFeature.afterInactivityEntry().setRawStoredState(Toggle.State(enable = false))
+
+        testee.viewState.test {
+            assertFalse(awaitItem().showAfterInactivityEntry)
         }
     }
 

@@ -136,4 +136,7 @@
         <item quantity="other" instruction="%1$d is the number of chats the user is about to delete.">Delete %1$d chats?</item>
     </plurals>
 
+    <!-- Not yet requested for translation: move to strings-settings.xml when copy is final -->
+    <string name="afterInactivitySpecificPageUrlHint">URL</string>
+
 </resources>
