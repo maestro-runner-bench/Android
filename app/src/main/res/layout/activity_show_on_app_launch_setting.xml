@@ -90,19 +90,6 @@
                 tools:secondaryText="5 minutes"
                 tools:visibility="visible" />
 
-            <com.duckduckgo.common.ui.view.divider.HorizontalDivider
-                android:id="@+id/afterInactivityTimeoutDivider"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone"
-                tools:visibility="visible" />
-
-            <com.duckduckgo.common.ui.view.divider.HorizontalDivider
-                android:id="@+id/returnToLastTabDivider"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone"
-                tools:visibility="visible" />
 
             <com.duckduckgo.common.ui.view.listitem.TwoLineListItem
                 android:id="@+id/returnToLastTabToggle"

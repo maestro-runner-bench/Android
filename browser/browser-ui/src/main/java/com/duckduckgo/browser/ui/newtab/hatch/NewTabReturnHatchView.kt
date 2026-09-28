@@ -67,7 +67,11 @@ class NewTabReturnHatchView @JvmOverloads constructor(
         // The host shows the "tab closed" snackbar so it can parent it to the activity content
         // (above the floating native input) and anchor it to the omnibar, matching the burn-tab
         // snackbar. onUndo restores the tab; onCommit commits the deletion.
-        fun onTabClosed(tabId: String, onUndo: () -> Unit, onCommit: () -> Unit)
+        fun onTabClosed(
+            tabId: String,
+            onUndo: () -> Unit,
+            onCommit: () -> Unit,
+        )
     }
 
     @Inject
@@ -115,6 +119,7 @@ class NewTabReturnHatchView @JvmOverloads constructor(
         when (command) {
             NewTabReturnHatchViewModel.Command.LaunchTabSwitcher ->
                 globalActivityStarter.start(context, TabSwitcherScreenNoParams)
+
             is NewTabReturnHatchViewModel.Command.ShowTabClosedSnackbar ->
                 hatchHatchListener?.onTabClosed(
                     command.tabId,
@@ -143,13 +148,13 @@ class NewTabReturnHatchView @JvmOverloads constructor(
 
     fun render(state: NewTabReturnHatchViewModel.ViewState) {
         faviconJob.cancel()
-        popupMenu.contentView.setAfterInactivityEntry(state.showAfterInactivityEntry, state.afterInactivityDestinationSummary)
         if (state.shouldShow) {
             when (state.mode) {
                 BrowserMode.FIRE -> {
                     binding.returnHatchSiteTitle.text = context.getString(R.string.newTabReturnHatchFireTabTitle)
                     binding.returnHatchFavicon.setImageResource(resolveThemedDrawableAttr(CommonR.attr.daxDrawableFireWindowPhone))
                 }
+
                 BrowserMode.REGULAR -> {
                     binding.returnHatchSiteTitle.text = state.titleOrPlaceholder()
                     if (state.isDuckChat) {
@@ -168,6 +173,7 @@ class NewTabReturnHatchView @JvmOverloads constructor(
             } else {
                 binding.returnHatchTabsMenu.gone()
             }
+            state.afterInactivityEntry()
             binding.returnHatchRoot.show()
         } else {
             binding.returnHatchRoot.gone()
@@ -186,10 +192,9 @@ class NewTabReturnHatchView @JvmOverloads constructor(
         popupMenu.onMenuItemClicked(popupMenu.contentView.findViewById(R.id.hatchMenuHideShortcut)) {
             viewModel.onDontShowThisPressed()
         }
-        popupMenu.contentView.findViewById<TwoLineListItem>(R.id.hatchMenuAfterInactivity).setClickListener {
+        popupMenu.onMenuItemClicked(popupMenu.contentView.findViewById(R.id.hatchMenuAfterInactivity)) {
             viewModel.onAfterInactivityPressed()
             hatchHatchListener?.onAfterInactivityPressed()
-            popupMenu.dismiss()
         }
     }
 
@@ -198,6 +203,26 @@ class NewTabReturnHatchView @JvmOverloads constructor(
         if (isDuckChat) return context.getString(R.string.newTabReturnHatchDuckChatPlaceholderTitle)
         if (isSerp) return context.getString(R.string.newTabReturnHatchSerpPlaceholderTitle)
         return tabTitle
+    }
+
+    private fun NewTabReturnHatchViewModel.ViewState.afterInactivityEntry() {
+        val visibility = if (this.showAfterInactivityEntry) VISIBLE else GONE
+        popupMenu.contentView.findViewById<View>(R.id.hatchMenuAfterInactivity).visibility = visibility
+        popupMenu.contentView.findViewById<View>(R.id.hatchMenuAfterInactivityTopDivider).visibility = visibility
+        popupMenu.contentView.findViewById<View>(R.id.hatchMenuAfterInactivityBottomDivider).visibility = visibility
+        if (!this.showAfterInactivityEntry) return
+
+        val summaryText = when (this.afterInactivityDestinationSummary) {
+            is NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.TextRes -> context.getString(this.afterInactivityDestinationSummary.resId)
+            is NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.Url -> this.afterInactivityDestinationSummary.url
+        }
+        val hatchMenuAfterInactivity = popupMenu.contentView.findViewById<TwoLineListItem>(R.id.hatchMenuAfterInactivity)
+        hatchMenuAfterInactivity.setSecondaryText(summaryText)
+        hatchMenuAfterInactivity.contentDescription = context.getString(
+            R.string.hatchMenuAfterInactivityContentDescription,
+            context.getString(R.string.hatchMenuAfterInactivitySettings),
+            summaryText,
+        )
     }
 
     fun setHatchListener(hatchListener: HatchListener) {
@@ -225,27 +250,4 @@ class NewTabReturnHatchView @JvmOverloads constructor(
         context.theme.resolveAttribute(attr, typedValue, true)
         return typedValue.resourceId
     }
-}
-
-private fun View.setAfterInactivityEntry(
-    show: Boolean,
-    summary: NewTabReturnHatchViewModel.AfterInactivityDestinationSummary,
-) {
-    val visibility = if (show) View.VISIBLE else View.GONE
-    findViewById<View>(R.id.hatchMenuAfterInactivity).visibility = visibility
-    findViewById<View>(R.id.hatchMenuAfterInactivityTopDivider).visibility = visibility
-    findViewById<View>(R.id.hatchMenuAfterInactivityBottomDivider).visibility = visibility
-    if (!show) return
-
-    val summaryText = when (summary) {
-        is NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.TextRes -> context.getString(summary.resId)
-        is NewTabReturnHatchViewModel.AfterInactivityDestinationSummary.Url -> summary.url
-    }
-    val hatchMenuAfterInactivity = findViewById<TwoLineListItem>(R.id.hatchMenuAfterInactivity)
-    hatchMenuAfterInactivity.setSecondaryText(summaryText)
-    hatchMenuAfterInactivity.contentDescription = context.getString(
-        R.string.hatchMenuAfterInactivityContentDescription,
-        context.getString(R.string.hatchMenuAfterInactivitySettings),
-        summaryText,
-    )
 }
