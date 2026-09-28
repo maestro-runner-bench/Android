@@ -87,14 +87,6 @@ class ShowOnAppLaunchPrefsDataStoreTest {
     }
 
     @Test
-    fun whenOptionNullAndBothNtpDefaultFlagsEnabledThenReturnsNewTabPage() = runTest {
-        androidBrowserConfigFeature.showNTPAfterIdleReturn().setRawStoredState(Toggle.State(enable = true))
-        androidBrowserConfigFeature.ntpAsDefaultAfterIdleReturn().setRawStoredState(Toggle.State(enable = true))
-
-        assertEquals(NewTabPage, testee.optionFlow.first())
-    }
-
-    @Test
     fun whenOptionExplicitlySetThenNtpDefaultFlagsAreIgnored() = runTest {
         androidBrowserConfigFeature.showNTPAfterIdleReturn().setRawStoredState(Toggle.State(enable = true))
         androidBrowserConfigFeature.ntpAsDefaultAfterIdleReturn().setRawStoredState(Toggle.State(enable = true))

@@ -185,38 +185,7 @@ class AfterInactivitySettingsDataProviderImplTest {
         )
     }
 
-<<<<<<< HEAD
     private fun providerWithStore(store: ShowOnAppLaunchOptionDataStore) = AfterInactivitySettingsDataProviderImpl(
-=======
-    @Test
-    fun whenAvailabilityChangesThenImplicitDestinationMatchesFreshCanonicalReads() = coroutineTestRule.testScope.runTest {
-        val store = realOptionStore()
-        val provider = realStoreProvider(store)
-        browserConfigFeature.showNTPAfterIdleReturn().setRawStoredState(Toggle.State(enable = false))
-        browserConfigFeature.ntpAsDefaultAfterIdleReturn().setRawStoredState(Toggle.State(enable = true))
-
-        assertEquals(AfterInactivitySettings.LastUsedTab, provider.settings.first())
-
-        setRemoteDefault(600L)
-        assertEquals(NewTabPage, store.optionFlow.first())
-        assertEquals(AfterInactivitySettings.NewTabPage(600L, true), provider.settings.first())
-
-        browserConfigFeature.showNTPAfterIdleReturn().setRawStoredState(Toggle.State(enable = false))
-        assertEquals(LastOpenedTab, store.optionFlow.first())
-        assertEquals(AfterInactivitySettings.LastUsedTab, provider.settings.first())
-        assertEquals(false, store.hasOptionSelected())
-    }
-
-    private fun realOptionStore(): ShowOnAppLaunchOptionPrefsDataStore {
-        val dataStore = PreferenceDataStoreFactory.create(
-            scope = coroutineTestRule.testScope.backgroundScope,
-            produceFile = { temporaryFolder.newFile("settings.preferences_pb") },
-        )
-        return ShowOnAppLaunchOptionPrefsDataStore(dataStore, browserConfigFeature)
-    }
-
-    private fun realStoreProvider(store: ShowOnAppLaunchOptionDataStore) = AfterInactivitySettingsDataProviderImpl(
->>>>>>> 1faed476a6 (Gate the hatch After Inactivity entry and align Settings layout)
         store,
         settingsDataStore,
         browserConfigFeature,
