@@ -136,11 +136,22 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          ram-size: 4096M
-          disk-size: 6000M
+          cores: 4
+          ram-size: 8192M
+          heap-size: 4096M
+          disk-size: 10G
           emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
           disable-animations: true
           script: bash .github/maestro-runner/run-e2e.sh
+
+      - name: Collect emulator crash data
+        if: always()
+        run: |
+          mkdir -p reports/emulator
+          cp -r /tmp/android-runner/emu-crash-* reports/emulator/ 2>/dev/null || true
+          ls -la /tmp/android-runner/ > reports/emulator/tmp-android-runner-ls.txt 2>&1 || true
+          sudo dmesg > reports/emulator/dmesg.txt 2>&1 || true
+          free -m > reports/emulator/free.txt 2>&1 || true
 
       - name: Upload reports
         if: always()
