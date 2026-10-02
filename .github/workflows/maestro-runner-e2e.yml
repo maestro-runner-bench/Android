@@ -43,13 +43,28 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 50
+
+      # APKs depend only on the app source, not on this branch's CI-only commits.
+      - name: APK cache key
+        id: key
+        run: echo "src=$(git log -1 --format=%H -- . ':(exclude).github')" >> "$GITHUB_OUTPUT"
+
+      - name: Restore APKs
+        id: apkcache
+        uses: actions/cache@v4
+        with:
+          path: apk
+          key: ddg-apks-v1-${{ steps.key.outputs.src }}
 
       - uses: actions/setup-java@v4
+        if: steps.apkcache.outputs.cache-hit != 'true'
         with:
           java-version-file: .github/.java-version
           distribution: 'temurin'
 
       - name: Throwaway release signing key (stands in for FAKE_RELEASE_PROPERTIES / FAKE_RELEASE_KEY)
+        if: steps.apkcache.outputs.cache-hit != 'true'
         run: |
           d="$HOME/jenkins_static/com.duckduckgo.mobile.android"
           mkdir -p "$d"
@@ -59,16 +74,20 @@ jobs:
             > "$d/ddg_android_build.properties"
 
       - uses: gradle/actions/setup-gradle@v5
+        if: steps.apkcache.outputs.cache-hit != 'true'
         with:
           cache-cleanup: never
 
       - name: Assemble Play release APK
+        if: steps.apkcache.outputs.cache-hit != 'true'
         run: ./gradlew assemblePlayRelease $GRADLE_FLAGS
 
       - name: Assemble Internal release APK
+        if: steps.apkcache.outputs.cache-hit != 'true'
         run: ./gradlew assembleInternalRelease $GRADLE_FLAGS
 
       - name: Collect APKs
+        if: steps.apkcache.outputs.cache-hit != 'true'
         run: |
           mkdir -p apk
           find . -path ./apk -prune -o -name "*play-release*.apk" -print -exec cp '{}' apk/release.apk \;
@@ -119,7 +138,7 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disk-size: 6000M
-          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
           disable-animations: true
           script: bash .github/maestro-runner/run-e2e.sh
 
