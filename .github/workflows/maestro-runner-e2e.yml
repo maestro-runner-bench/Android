@@ -13,6 +13,16 @@ on:
         required: false
         type: string
         default: 'autofillNoAuthTests,customTabsTest,privacyTestInternal,onboardingTest,onboardingInternalTest,navigationTest,adClickTest,privacyTest,securityTest,releaseTest,unifiedInputTest,permissionsTest'
+      gpu:
+        description: 'Emulator -gpu mode'
+        required: false
+        type: string
+        default: 'swiftshader_indirect'
+      emulator_build:
+        description: 'Emulator build number to pin (empty = latest)'
+        required: false
+        type: string
+        default: ''
       runner_version:
         description: 'maestro-runner version'
         required: false
@@ -20,12 +30,13 @@ on:
         default: '1.1.28.1'
 
 concurrency:
-  group: maestro-runner-e2e-${{ github.ref }}
+  group: maestro-runner-e2e-${{ github.ref }}-${{ inputs.gpu }}-${{ inputs.emulator_build }}-${{ inputs.include_tags }}
   cancel-in-progress: true
 
 env:
   INCLUDE_TAGS: ${{ inputs.include_tags || 'autofillNoAuthTests,customTabsTest,privacyTestInternal,onboardingTest,onboardingInternalTest,navigationTest,adClickTest,privacyTest,securityTest,releaseTest,unifiedInputTest,permissionsTest' }}
   RUNNER_VERSION: ${{ inputs.runner_version || '1.1.28.1' }}
+  EMU_GPU: ${{ inputs.gpu || 'swiftshader_indirect' }}
   # Nightly passes '-Pautofill-disable-auth-requirement'. The proprietary DuckSans font needs a
   # private GitHub Packages token, so use the placeholder fonts (text content is unchanged).
   GRADLE_FLAGS: '-Pforce-default-variant -Pskip-onboarding -x lint -Pautofill-disable-auth-requirement -PuseProprietaryFont=false'
@@ -140,7 +151,8 @@ jobs:
           ram-size: 8192M
           heap-size: 4096M
           disk-size: 10G
-          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
+          emulator-options: -no-snapshot -no-window -gpu ${{ env.EMU_GPU }} -noaudio -no-boot-anim -camera-back none -no-metrics
+          emulator-build: ${{ inputs.emulator_build }}
           disable-animations: true
           script: bash .github/maestro-runner/run-e2e.sh
 

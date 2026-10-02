@@ -8,7 +8,7 @@ DEVICE="${DEVICE:-emulator-5554}"
 RUNNER="${RUNNER:-$HOME/.maestro-runner/bin/maestro-runner}"
 PKG=com.duckduckgo.mobile.android
 INTERNAL_TAGS=" customTabsTest privacyTestInternal onboardingInternalTest unifiedInputTest "
-EMU_OPTS="-port 5554 -avd test -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics"
+EMU_OPTS="-port 5554 -avd test -no-snapshot -no-window -gpu ${EMU_GPU:-swiftshader_indirect} -noaudio -no-boot-anim -camera-back none -no-metrics"
 mkdir -p reports
 
 # Host memory/load trace, to diagnose emulator deaths.
