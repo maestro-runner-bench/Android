@@ -55,10 +55,17 @@ for tag in "${TAGS[@]}"; do
   adb -s "$DEVICE" uninstall "$PKG" >/dev/null 2>&1 || true
   adb -s "$DEVICE" install -r "$apk" || { echo "install failed for $tag"; rc=1; echo "::endgroup::"; continue; }
   start=$(date +%s)
-  "$RUNNER" --platform android --device "$DEVICE" test \
-    --include-tags "$tag" --retries 2 \
-    --output "reports/$tag" --flatten .maestro
-  r=$?
+  if [ "${ENGINE:-maestro-runner}" = "maestro" ]; then
+    mkdir -p "reports/$tag"
+    maestro --device "$DEVICE" test --include-tags "$tag" --format junit \
+      --output "reports/$tag/junit-report.xml" --test-output-dir "reports/$tag" .maestro
+    r=$?
+  else
+    "$RUNNER" --platform android --device "$DEVICE" --driver "${RUNNER_DRIVER:-devicelab}" test \
+      --include-tags "$tag" --retries 2 \
+      --output "reports/$tag" --flatten .maestro
+    r=$?
+  fi
   echo "$tag apk=$(basename "$apk") exit=$r seconds=$(( $(date +%s) - start )) device=$(adb -s "$DEVICE" get-state 2>&1)" | tee -a reports/summary.txt
   [ $r -ne 0 ] && rc=1
   echo "::endgroup::"

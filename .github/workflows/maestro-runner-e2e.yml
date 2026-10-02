@@ -23,6 +23,16 @@ on:
         required: false
         type: string
         default: ''
+      driver:
+        description: 'maestro-runner Android driver (devicelab = default, uiautomator2)'
+        required: false
+        type: string
+        default: 'devicelab'
+      engine:
+        description: 'maestro-runner, or maestro (upstream Maestro CLI 2.4.0 as a control)'
+        required: false
+        type: string
+        default: 'maestro-runner'
       runner_version:
         description: 'maestro-runner version'
         required: false
@@ -30,13 +40,15 @@ on:
         default: '1.1.28.1'
 
 concurrency:
-  group: maestro-runner-e2e-${{ github.ref }}-${{ inputs.gpu }}-${{ inputs.emulator_build }}-${{ inputs.include_tags }}
+  group: maestro-runner-e2e-${{ github.ref }}-${{ inputs.gpu }}-${{ inputs.emulator_build }}-${{ inputs.include_tags }}-${{ inputs.driver }}-${{ inputs.engine }}
   cancel-in-progress: true
 
 env:
   INCLUDE_TAGS: ${{ inputs.include_tags || 'autofillNoAuthTests,customTabsTest,privacyTestInternal,onboardingTest,onboardingInternalTest,navigationTest,adClickTest,privacyTest,securityTest,releaseTest,unifiedInputTest,permissionsTest' }}
   RUNNER_VERSION: ${{ inputs.runner_version || '1.1.28.1' }}
   EMU_GPU: ${{ inputs.gpu || 'swiftshader_indirect' }}
+  RUNNER_DRIVER: ${{ inputs.driver || 'devicelab' }}
+  ENGINE: ${{ inputs.engine || 'maestro-runner' }}
   # Nightly passes '-Pautofill-disable-auth-requirement'. The proprietary DuckSans font needs a
   # private GitHub Packages token, so use the placeholder fonts (text content is unchanged).
   GRADLE_FLAGS: '-Pforce-default-variant -Pskip-onboarding -x lint -Pautofill-disable-auth-requirement -PuseProprietaryFont=false'
@@ -139,6 +151,13 @@ jobs:
           curl -fsSL https://open.devicelab.dev/install/maestro-runner | bash -s -- --version "$RUNNER_VERSION"
           echo "$HOME/.maestro-runner/bin" >> "$GITHUB_PATH"
           "$HOME/.maestro-runner/bin/maestro-runner" --version
+
+      - name: Install Maestro CLI (control engine)
+        if: env.ENGINE == 'maestro'
+        run: |
+          export MAESTRO_VERSION=2.4.0
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
       - name: Run flows on API 34 emulator
         uses: reactivecircus/android-emulator-runner@v2
