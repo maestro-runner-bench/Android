@@ -14,10 +14,10 @@ on:
         type: string
         default: 'autofillNoAuthTests,customTabsTest,privacyTestInternal,onboardingTest,onboardingInternalTest,navigationTest,adClickTest,privacyTest,securityTest,releaseTest,unifiedInputTest,permissionsTest'
       gpu:
-        description: 'Emulator -gpu mode'
+        description: 'Emulator -gpu mode (swiftshader_indirect and guest kill the emulator once the DDG browser WebView renders)'
         required: false
         type: string
-        default: 'swiftshader_indirect'
+        default: 'swangle_indirect'
       emulator_build:
         description: 'Emulator build number to pin (empty = latest)'
         required: false
@@ -46,7 +46,7 @@ concurrency:
 env:
   INCLUDE_TAGS: ${{ inputs.include_tags || 'autofillNoAuthTests,customTabsTest,privacyTestInternal,onboardingTest,onboardingInternalTest,navigationTest,adClickTest,privacyTest,securityTest,releaseTest,unifiedInputTest,permissionsTest' }}
   RUNNER_VERSION: ${{ inputs.runner_version || '1.1.28.1' }}
-  EMU_GPU: ${{ inputs.gpu || 'swiftshader_indirect' }}
+  EMU_GPU: ${{ inputs.gpu || 'swangle_indirect' }}
   RUNNER_DRIVER: ${{ inputs.driver || 'devicelab' }}
   ENGINE: ${{ inputs.engine || 'maestro-runner' }}
   # Nightly passes '-Pautofill-disable-auth-requirement'. The proprietary DuckSans font needs a
