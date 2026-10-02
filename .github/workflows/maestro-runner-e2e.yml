@@ -1,0 +1,132 @@
+# maestro-runner bench: run the nightly full-suite Maestro flows (e2e-nightly-full-suite.yml)
+# on a local API 34 emulator with maestro-runner instead of Maestro Cloud.
+# Build mirrors .github/actions/checkout-and-assemble with the nightly's gradle flags.
+name: 'maestro-runner E2E (nightly suite)'
+
+on:
+  push:
+    branches: [maestro-runner-e2e]
+  workflow_dispatch:
+    inputs:
+      include_tags:
+        description: 'Comma-separated tags, run one suite per tag (default = nightly full suite)'
+        required: false
+        type: string
+        default: 'autofillNoAuthTests,customTabsTest,privacyTestInternal,onboardingTest,onboardingInternalTest,navigationTest,adClickTest,privacyTest,securityTest,releaseTest,unifiedInputTest,permissionsTest'
+      runner_version:
+        description: 'maestro-runner version'
+        required: false
+        type: string
+        default: '1.1.28.1'
+
+concurrency:
+  group: maestro-runner-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  INCLUDE_TAGS: ${{ inputs.include_tags || 'autofillNoAuthTests,customTabsTest,privacyTestInternal,onboardingTest,onboardingInternalTest,navigationTest,adClickTest,privacyTest,securityTest,releaseTest,unifiedInputTest,permissionsTest' }}
+  RUNNER_VERSION: ${{ inputs.runner_version || '1.1.28.1' }}
+  # Nightly passes '-Pautofill-disable-auth-requirement'. The proprietary DuckSans font needs a
+  # private GitHub Packages token, so use the placeholder fonts (text content is unchanged).
+  GRADLE_FLAGS: '-Pforce-default-variant -Pskip-onboarding -x lint -Pautofill-disable-auth-requirement -PuseProprietaryFont=false'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift /usr/local/share/boost "$AGENT_TOOLSDIRECTORY/CodeQL" || true
+          df -h /
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version-file: .github/.java-version
+          distribution: 'temurin'
+
+      - name: Throwaway release signing key (stands in for FAKE_RELEASE_PROPERTIES / FAKE_RELEASE_KEY)
+        run: |
+          d="$HOME/jenkins_static/com.duckduckgo.mobile.android"
+          mkdir -p "$d"
+          keytool -genkeypair -v -keystore "$d/android" -storepass benchpass -keypass benchpass \
+            -alias bench -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=bench" -storetype JKS
+          printf 'key.store=android\nkey.store.password=benchpass\nkey.alias=bench\nkey.alias.password=benchpass\n' \
+            > "$d/ddg_android_build.properties"
+
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-cleanup: never
+
+      - name: Assemble Play release APK
+        run: ./gradlew assemblePlayRelease $GRADLE_FLAGS
+
+      - name: Assemble Internal release APK
+        run: ./gradlew assembleInternalRelease $GRADLE_FLAGS
+
+      - name: Collect APKs
+        run: |
+          mkdir -p apk
+          find . -path ./apk -prune -o -name "*play-release*.apk" -print -exec cp '{}' apk/release.apk \;
+          find . -path ./apk -prune -o -name "*internal-release*.apk" -print -exec cp '{}' apk/internal.apk \;
+          ls -la apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apks
+          path: apk/*.apk
+          retention-days: 7
+
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift /usr/local/share/boost "$AGENT_TOOLSDIRECTORY/CodeQL" || true
+          df -h /
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: apks
+          path: apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install maestro-runner
+        run: |
+          curl -fsSL https://open.devicelab.dev/install/maestro-runner | bash -s -- --version "$RUNNER_VERSION"
+          echo "$HOME/.maestro-runner/bin" >> "$GITHUB_PATH"
+          "$HOME/.maestro-runner/bin/maestro-runner" --version
+
+      - name: Run flows on API 34 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          ram-size: 4096M
+          disk-size: 6000M
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash .github/maestro-runner/run-e2e.sh
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-runner-reports
+          path: reports/
+          retention-days: 14
